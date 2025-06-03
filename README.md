@@ -18,6 +18,26 @@
 - Python 3.7 or higher
 - Ubuntu/Linux terminal
 
+First, make sure you have Python and pip installed:
+
+bash
+# sudo apt update
+sudo apt install python3 python3-pip
+Then install the packages:
+
+# pip3 install tensorflow>=2.8.0 keras>=2.8.0 numpy>=1.21.0 scikit-learn>=1.0.0
+
+# Or install them one by one:
+pip3 install "tensorflow>=2.8.0"
+pip3 install "keras>=2.8.0" 
+pip3 install "numpy>=1.21.0"
+pip3 install "scikit-learn>=1.0.0"
+
+# A few notes: TensorFlow will automatically install a compatible version of Keras, so you might not need to install Keras separately. Also, if you're working on a specific project, consider using a virtual environment to avoid conflicts:
+
+python3 -m venv myenv
+source myenv/bin/activate
+
 ### Quick Install
 
 ```bash
