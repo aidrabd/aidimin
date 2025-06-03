@@ -1,40 +1,50 @@
 import os
-import requests
 import numpy as np
 from tensorflow.keras.models import load_model
 
-# Correct raw URL to your model file on GitHub
-MODEL_URL = "https://github.com/aidrabd/hybrid_model/raw/main/aidimin.h5"
-MODEL_PATH = "aidimin.h5"
+# Load model
+model = load_model('hybrid_model/aidimin.h5')
 
-def download_model():
-    if not os.path.exists(MODEL_PATH):
-        print("Downloading model from GitHub...")
-        r = requests.get(MODEL_URL)
-        r.raise_for_status()
-        with open(MODEL_PATH, "wb") as f:
-            f.write(r.content)
-        print("Download complete.")
-    else:
-        print("Model already downloaded.")
+# Allowed file extensions
+extensions = ('.fa', '.fasta', '.txt')
+
+# Function to preprocess file content into model input
+def preprocess_file(filepath):
+    # Example: read file, convert characters to numbers (dummy example)
+    with open(filepath, 'r') as f:
+        content = f.read().strip()
+
+    # Replace below with your actual preprocessing logic
+    # For demo, create a fixed-size dummy input array
+    # e.g. model expects (1, 224, 224, 3) shape, so we create random data
+    dummy_input = np.random.random((1, 224, 224, 3))
+    return dummy_input
 
 def main():
-    # Download the model file if not exists
-    download_model()
+    # Get current directory (where this script runs)
+    current_dir = os.path.dirname(os.path.abspath(__file__))
 
-    # Load the model
-    print("Loading model...")
-    model = load_model(MODEL_PATH)
-    print("Model loaded.")
+    # List all files with allowed extensions
+    input_files = [f for f in os.listdir(current_dir) if f.endswith(extensions)]
 
-    # Prepare dummy input data (change shape according to your model)
-    sample_input = np.random.random((1, 224, 224, 3))  # Example for image model
+    if not input_files:
+        print("No input files with .fa, .fasta, .txt found in current directory.")
+        return
 
-    # Run prediction
-    print("Running prediction...")
-    predictions = model.predict(sample_input)
-    print("Prediction output:")
-    print(predictions)
+    for filename in input_files:
+        filepath = os.path.join(current_dir, filename)
+        print(f"Processing file: {filename}")
+
+        # Preprocess file into model input
+        model_input = preprocess_file(filepath)
+
+        # Predict
+        prediction = model.predict(model_input)
+
+        # Print prediction output (customize as needed)
+        print(f"Prediction for {filename}:")
+        print(prediction)
+        print("-" * 40)
 
 if __name__ == "__main__":
     main()
