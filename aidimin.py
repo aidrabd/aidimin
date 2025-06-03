@@ -1,92 +1,138 @@
 import os
-import sys
-from tensorflow import keras
-from keras.layers import InputLayer
+import glob
 import numpy as np
+from keras.models import load_model
+from keras.utils import Sequence
+import csv
 
-# Custom InputLayer to ignore 'batch_shape' argument during deserialization
-class CustomInputLayer(InputLayer):
-    def __init__(self, *args, **kwargs):
-        if 'batch_shape' in kwargs:
-            kwargs.pop('batch_shape')
-        super().__init__(*args, **kwargs)
+class SequenceGenerator(Sequence):
+    def __init__(self, sequences, batch_size=32, max_length=500):
+        self.sequences = sequences
+        self.batch_size = batch_size
+        self.max_length = max_length
+        self.amino_acids = 'ACDEFGHIKLMNPQRSTVWY'
+        self.aa_to_index = {aa: idx for idx, aa in enumerate(self.amino_acids)}
 
-def load_model_custom(model_path):
-    custom_objects = {'InputLayer': CustomInputLayer}
-    model = keras.models.load_model(model_path, custom_objects=custom_objects)
-    return model
+    def one_hot_encode(self, seq):
+        one_hot = np.zeros((self.max_length, len(self.amino_acids)), dtype=int)
+        for i, aa in enumerate(seq):
+            if aa in self.aa_to_index and i < self.max_length:
+                one_hot[i, self.aa_to_index[aa]] = 1
+        return one_hot
 
-def find_sequence_file(exclude_files):
-    for f in os.listdir('.'):
-        if os.path.isfile(f) and f not in exclude_files:
-            if f.endswith(('.fasta', '.fa', '.txt')):
-                return f
-    return None
+    def __len__(self):
+        return int(np.ceil(len(self.sequences) / self.batch_size))
 
-def read_sequence_file(filepath):
-    # Basic read: concatenate all lines ignoring lines starting with '>' (fasta header)
-    seq = []
-    with open(filepath, 'r') as f:
-        for line in f:
-            line = line.strip()
-            if len(line) == 0:
-                continue
-            if line.startswith('>'):  # fasta header
-                continue
-            seq.append(line.upper())
-    return ''.join(seq)
+    def __getitem__(self, index):
+        batch_sequences = self.sequences[index * self.batch_size:(index + 1) * self.batch_size]
+        X = np.array([self.one_hot_encode(seq) for seq in batch_sequences])
+        return X
 
-def encode_sequence(seq, max_len=1000):
-    # Simple integer encoding: A=0, C=1, G=2, T=3, others=4
-    mapping = {'A':0, 'C':1, 'G':2, 'T':3}
-    encoded = [mapping.get(base, 4) for base in seq]
-    # Pad or truncate
-    if len(encoded) < max_len:
-        encoded += [4] * (max_len - len(encoded))  # pad with 4 (unknown)
-    else:
-        encoded = encoded[:max_len]
-    return np.array(encoded)
+def load_fasta_sequences(file_path):
+    sequences = []
+    with open(file_path, 'r') as file:
+        sequence = ''
+        for line in file:
+            if line.startswith('>'):
+                if sequence:
+                    sequences.append(sequence)
+                sequence = ''
+            else:
+                sequence += line.strip()
+        if sequence:
+            sequences.append(sequence)
+    return sequences
+
+def save_predictions_csv(sequences, y_pred_labels, y_pred_probs, output_dir, index_to_label, filename_prefix):
+    filename = os.path.join(output_dir, f"{filename_prefix}_predictions.csv")
+    with open(filename, mode='w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(['Sequence', 'Predicted Label', 'Predicted Probability'])
+        for seq, pred_lbl, pred_prob in zip(sequences, y_pred_labels, y_pred_probs):
+            label_str = index_to_label[pred_lbl]
+            if label_str == "Control":
+                label_str = "Not Immune Evasion Protein"
+            writer.writerow([seq, label_str, float(max(pred_prob))])
+    print(f"Predictions saved to {filename}")
+
+def save_sequences_by_label(sequences, y_pred_labels, index_to_label, output_dir):
+    label_to_seqs = {}
+    for seq, pred_idx in zip(sequences, y_pred_labels):
+        label = index_to_label[pred_idx]
+        if label == "Control":
+            label = "Not Immune Evasion Protein"
+        if label not in label_to_seqs:
+            label_to_seqs[label] = []
+        label_to_seqs[label].append(seq)
+
+    for label, seqs in label_to_seqs.items():
+        safe_label = label.replace(" ", "_")
+        filename = os.path.join(output_dir, f"{safe_label}.fasta")
+        with open(filename, 'a') as f:
+            for i, seq in enumerate(seqs, 1):
+                header = f">{label}_seq{i}"
+                f.write(header + "\n")
+                f.write(seq + "\n")
+        print(f"Saved {len(seqs)} sequences to {filename}")
 
 def main():
-    MODEL_PATH = os.path.join('hybrid_model', 'aidimin.h5')
-    if not os.path.exists(MODEL_PATH):
-        print(f"Model file not found at {MODEL_PATH}")
-        sys.exit(1)
+    model_path = "hybrid_model/aidimin.h5"
+    max_length = 500
+    batch_size = 32
+    output_dir = "Output"
+    os.makedirs(output_dir, exist_ok=True)
 
-    print("Loading model...")
-    model = load_model_custom(MODEL_PATH)
-    print("Model loaded successfully!")
-    model.summary()
+    # Load model
+    print(f"Loading model from {model_path}...")
+    model = load_model(model_path)
 
-    exclude = {os.path.basename(__file__), 'hybrid_model'}
+    # Define fasta file extensions to look for
+    fasta_extensions = ['*.fasta', '*.fa', '*.txt', '*.FASTA', '*.FA', '*.TXT']
 
-    input_file = find_sequence_file(exclude)
-    if input_file is None:
-        print("No .fasta, .fa, or .txt input file found in current directory.")
-        sys.exit(1)
+    # Find all fasta files in current directory (exclude model and output folders)
+    all_pred_files = []
+    for ext in fasta_extensions:
+        all_pred_files.extend(glob.glob(ext))
 
-    print(f"Found input file: {input_file}")
+    # Filter out files inside 'hybrid_model' or 'Output' folders (if any)
+    all_pred_files = [f for f in all_pred_files if os.path.isfile(f) and not (f.startswith('hybrid_model' + os.sep) or f.startswith('Output' + os.sep))]
 
-    try:
-        sequence = read_sequence_file(input_file)
-        print(f"Read sequence length: {len(sequence)}")
-    except Exception as e:
-        print(f"Failed to read input file: {e}")
-        sys.exit(1)
+    if not all_pred_files:
+        print("No fasta/sequence files found in current directory for prediction.")
+        return
 
-    # Adjust max_len and input shape to your model's expected input
-    max_len = 1000
-    encoded_seq = encode_sequence(sequence, max_len)
+    print(f"Found {len(all_pred_files)} sequence files for prediction: {all_pred_files}")
 
-    # Reshape for model input, e.g. (batch_size, sequence_length), or add channels if needed
-    # Adjust shape according to your model input, here assuming (1, max_len)
-    input_data = np.expand_dims(encoded_seq, axis=0)
+    # You must know your class labels in the order the model was trained
+    # Replace this dict with your actual classes and order
+    index_to_label = {0: "Control", 1: "Immune Evasion Protein"}  # Example, adjust accordingly
 
-    print("Running prediction...")
-    predictions = model.predict(input_data)
+    for pred_file in all_pred_files:
+        print(f"\nProcessing predictions for file: {pred_file}")
+        sequences = load_fasta_sequences(pred_file)
+        if not sequences:
+            print(f"No sequences found in {pred_file}, skipping.")
+            continue
 
-    print("Prediction result:")
-    print(predictions)
+        pred_gen = SequenceGenerator(sequences, batch_size=batch_size, max_length=max_length)
+        preds_prob = model.predict(pred_gen, verbose=1)
+        preds = np.argmax(preds_prob, axis=1)
 
-if __name__ == '__main__':
+        # Print summary predictions
+        for i, (seq, pred_idx, prob) in enumerate(zip(sequences, preds, preds_prob)):
+            label_str = index_to_label.get(pred_idx, "Unknown")
+            if label_str == "Control":
+                label_str = "Not Immune Evasion Protein"
+            print(f"Seq#{i+1} (first 30 aa): {seq[:30]}... -> Predicted: {label_str} (prob={max(prob):.4f})")
+
+        # Save predictions CSV
+        filename_prefix = os.path.splitext(os.path.basename(pred_file))[0]
+        save_predictions_csv(sequences, preds, preds_prob, output_dir, index_to_label, filename_prefix)
+
+        # Save sequences grouped by predicted label
+        save_sequences_by_label(sequences, preds, index_to_label, output_dir)
+
+    print("\nAll predictions complete. Results saved in 'Output/' folder.")
+
+if __name__ == "__main__":
     main()
