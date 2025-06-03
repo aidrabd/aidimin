@@ -1,50 +1,92 @@
 import os
+import sys
+from tensorflow import keras
+from keras.layers import InputLayer
 import numpy as np
-from tensorflow.keras.models import load_model
 
-# Load model
-model = load_model('hybrid_model/aidimin.h5')
+# Custom InputLayer to ignore 'batch_shape' argument during deserialization
+class CustomInputLayer(InputLayer):
+    def __init__(self, *args, **kwargs):
+        if 'batch_shape' in kwargs:
+            kwargs.pop('batch_shape')
+        super().__init__(*args, **kwargs)
 
-# Allowed file extensions
-extensions = ('.fa', '.fasta', '.txt')
+def load_model_custom(model_path):
+    custom_objects = {'InputLayer': CustomInputLayer}
+    model = keras.models.load_model(model_path, custom_objects=custom_objects)
+    return model
 
-# Function to preprocess file content into model input
-def preprocess_file(filepath):
-    # Example: read file, convert characters to numbers (dummy example)
+def find_sequence_file(exclude_files):
+    for f in os.listdir('.'):
+        if os.path.isfile(f) and f not in exclude_files:
+            if f.endswith(('.fasta', '.fa', '.txt')):
+                return f
+    return None
+
+def read_sequence_file(filepath):
+    # Basic read: concatenate all lines ignoring lines starting with '>' (fasta header)
+    seq = []
     with open(filepath, 'r') as f:
-        content = f.read().strip()
+        for line in f:
+            line = line.strip()
+            if len(line) == 0:
+                continue
+            if line.startswith('>'):  # fasta header
+                continue
+            seq.append(line.upper())
+    return ''.join(seq)
 
-    # Replace below with your actual preprocessing logic
-    # For demo, create a fixed-size dummy input array
-    # e.g. model expects (1, 224, 224, 3) shape, so we create random data
-    dummy_input = np.random.random((1, 224, 224, 3))
-    return dummy_input
+def encode_sequence(seq, max_len=1000):
+    # Simple integer encoding: A=0, C=1, G=2, T=3, others=4
+    mapping = {'A':0, 'C':1, 'G':2, 'T':3}
+    encoded = [mapping.get(base, 4) for base in seq]
+    # Pad or truncate
+    if len(encoded) < max_len:
+        encoded += [4] * (max_len - len(encoded))  # pad with 4 (unknown)
+    else:
+        encoded = encoded[:max_len]
+    return np.array(encoded)
 
 def main():
-    # Get current directory (where this script runs)
-    current_dir = os.path.dirname(os.path.abspath(__file__))
+    MODEL_PATH = os.path.join('hybrid_model', 'aidimin.h5')
+    if not os.path.exists(MODEL_PATH):
+        print(f"Model file not found at {MODEL_PATH}")
+        sys.exit(1)
 
-    # List all files with allowed extensions
-    input_files = [f for f in os.listdir(current_dir) if f.endswith(extensions)]
+    print("Loading model...")
+    model = load_model_custom(MODEL_PATH)
+    print("Model loaded successfully!")
+    model.summary()
 
-    if not input_files:
-        print("No input files with .fa, .fasta, .txt found in current directory.")
-        return
+    exclude = {os.path.basename(__file__), 'hybrid_model'}
 
-    for filename in input_files:
-        filepath = os.path.join(current_dir, filename)
-        print(f"Processing file: {filename}")
+    input_file = find_sequence_file(exclude)
+    if input_file is None:
+        print("No .fasta, .fa, or .txt input file found in current directory.")
+        sys.exit(1)
 
-        # Preprocess file into model input
-        model_input = preprocess_file(filepath)
+    print(f"Found input file: {input_file}")
 
-        # Predict
-        prediction = model.predict(model_input)
+    try:
+        sequence = read_sequence_file(input_file)
+        print(f"Read sequence length: {len(sequence)}")
+    except Exception as e:
+        print(f"Failed to read input file: {e}")
+        sys.exit(1)
 
-        # Print prediction output (customize as needed)
-        print(f"Prediction for {filename}:")
-        print(prediction)
-        print("-" * 40)
+    # Adjust max_len and input shape to your model's expected input
+    max_len = 1000
+    encoded_seq = encode_sequence(sequence, max_len)
 
-if __name__ == "__main__":
+    # Reshape for model input, e.g. (batch_size, sequence_length), or add channels if needed
+    # Adjust shape according to your model input, here assuming (1, max_len)
+    input_data = np.expand_dims(encoded_seq, axis=0)
+
+    print("Running prediction...")
+    predictions = model.predict(input_data)
+
+    print("Prediction result:")
+    print(predictions)
+
+if __name__ == '__main__':
     main()
