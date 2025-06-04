@@ -15,57 +15,61 @@
 
 ### Prerequisites
 
-- Python 3.7 or higher
 - Ubuntu/Linux terminal
 
-First, make sure you have Python and pip installed:
-
-```bash
-sudo apt update
-sudo apt install python3 python3-pip
-Then install the packages:
-
-pip3 install tensorflow>=2.8.0 keras>=2.8.0 numpy>=1.21.0 scikit-learn>=1.0.0
-
-Or install them one by one:
-pip3 install "tensorflow>=2.8.0"
-pip3 install "keras>=2.8.0" 
-pip3 install "numpy>=1.21.0"
-pip3 install "scikit-learn>=1.0.0"
-
-A few notes: TensorFlow will automatically install a compatible version of Keras, so you might not need to install Keras separately. Also, if you're working on a specific project, consider using a virtual environment to avoid conflicts:
-
-python3 -m venv myenv
-source myenv/bin/activate
-```
-
-### Quick Install
-
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/aidimin.git
-cd aidimin
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Make prediction script executable
-chmod +x predict.py
-```
-
-### Alternative Installation with Virtual Environment
+### Installation
 
 ```bash
 # Clone and setup
 git clone https://github.com/yourusername/aidimin.git
 cd aidimin
 
-# Create virtual environment
-python3 -m venv aidimin_env
-source aidimin_env/bin/activate
+# Make prediction script executable
+chmod +x predict.py
+```
 
-# Install dependencies
-pip install -r requirements.txt
+First, make sure you have conda installed:
+
+```bash
+1. Install  Miniconda (if not installed)
+
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+bash Miniconda3-latest-Linux-x86_64.sh
+
+2. Activate conda base environment
+
+conda init
+
+Then, restart your terminal or run:
+
+source ~/.bashrc
+
+After that, activate the base environment with:
+
+conda activate
+```
+
+Second, make sure you have Python specific version installed:
+
+```bash
+conda create -n py312 python=3.12.9
+conda activate py312
+python --version
+```
+
+Third, make sure you have specific Tensorflow, Keras, numpy, scikit-learn versions installed:
+
+```bash
+
+tensorflow>=2.8.0
+keras>=2.8.0
+numpy>=1.21.0
+scikit-learn>=1.0.0
+
+conda install -c conda-forge "tensorflow>=2.8.0"
+conda install -c conda-forge "keras>=2.8.0"
+conda install -c conda-forge "numpy>=1.21.0"
+conda install -c conda-forge "scikit-learn>=1.0.0"
 ```
 
 ## Usage
