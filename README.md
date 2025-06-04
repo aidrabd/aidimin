@@ -77,6 +77,9 @@ conda install -c conda-forge "scikit-learn>=1.0.0"
 ### Basic Usage
 
 ```bash
+# Activate Python 3.12
+conda activate py312
+
 # Predict a single FASTA file
 python predict.py -f your_sequences.fasta
 
