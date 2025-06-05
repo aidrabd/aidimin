@@ -21,7 +21,7 @@
 
 ```bash
 # Clone and setup
-git clone https://github.com/yourusername/aidimin.git
+git clone https://github.com/aidrabd/aidimin.git
 cd aidimin
 
 # Make prediction script executable
