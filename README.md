@@ -225,7 +225,6 @@ pip install tensorflow-gpu>=2.8.0
 - **Input:** One-hot encoded amino acid sequences
 - **Max length:** 500 amino acids
 - **Classes:** 17 protein classes including:
-  - Control (Non-immune evasion proteins)
   - Influenza A proteins: HA, M2, NA, NP, NS1, NS2, PA-X, PB1-F2, PB2
   - Influenza B proteins: HA, M2, NA, NP, NS1, NS2, PB2
 
@@ -233,7 +232,6 @@ pip install tensorflow-gpu>=2.8.0
 
 | Class | Description |
 |-------|-------------|
-| Control | Non-immune evasion proteins |
 | InfA HA | Influenza A Hemagglutinin |
 | InfA M2 | Influenza A Matrix protein 2 |
 | InfA NA | Influenza A Neuraminidase |
