@@ -74,30 +74,12 @@ conda install -c conda-forge "scikit-learn>=1.0.0"
 
 ## Usage
 
-### Basic Usage
-
 ```bash
 # Activate Python 3.12
 conda activate py312
 
 # Predict a single FASTA file
-python predict.py -f your_sequences.fasta
-
-# Predict with custom output directory
-python predict.py -f sequences.fa -o results/
-
-# Auto-detect and predict all FASTA files in current directory
-python predict.py --auto
-```
-
-### Advanced Usage
-
-```bash
-# Custom model path and batch size
-python predict.py -f input.fasta -m path/to/model.h5 -b 64
-
-# Quiet mode (less verbose output)
-python predict.py -f sequences.fasta --quiet
+python predict.py --input your_sequences.fasta --model aidimin.h5 --output output.csv
 
 # Help
 python predict.py --help
@@ -153,57 +135,6 @@ predictions/
 - **Input shape:** (500, 20) - sequences up to 500 amino acids
 - **Amino acids:** Standard 20 amino acids (ACDEFGHIKLMNPQRSTVWY)
 
-## Examples
-
-### Example 1: Single File Prediction
-```bash
-# Place your FASTA file in the current directory
-python predict.py -f my_proteins.fasta
-
-# Check results
-ls predictions/
-# Output: my_proteins_predictions.csv, my_proteins_Class1.fasta, etc.
-```
-
-### Example 2: Batch Processing
-```bash
-# Place multiple FASTA files in current directory
-ls *.fasta
-# sample1.fasta  sample2.fasta  sample3.fasta
-
-python predict.py --auto
-
-# All files will be processed automatically
-```
-
-### Example 3: Custom Configuration
-```bash
-python predict.py \
-  -f large_dataset.fasta \
-  -m models/custom_model.h5 \
-  -o custom_results/ \
-  -b 128
-```
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Model file not found**
-   ```
-   Error: Model file 'aidimin.h5' not found.
-   ```
-   **Solution:** Ensure the model file is in the same directory or specify the correct path with `-m`
-
-2. **No sequences found**
-   ```
-   No sequences found in input.fasta
-   ```
-   **Solution:** Check FASTA file format and ensure sequences are properly formatted
-
-3. **Memory issues with large files**
-   **Solution:** Reduce batch size using `-b 16` or `-b 8`
-
 ### GPU Support
 
 If you have CUDA-compatible GPU and want to use GPU acceleration:
@@ -222,9 +153,9 @@ pip install tensorflow-gpu>=2.8.0
 ## Model Information
 
 - **Architecture:** Hybrid CNN-LSTM
-- **Input:** One-hot encoded amino acid sequences
+- **Input:** One-hot encoded amino acid sequences (Divided into clusters)
 - **Max length:** 500 amino acids
-- **Classes:** 17 protein classes including:
+- **Classes:** 16 protein classes including:
   - Influenza A proteins: HA, M2, NA, NP, NS1, NS2, PA-X, PB1-F2, PB2
   - Influenza B proteins: HA, M2, NA, NP, NS1, NS2, PB2
 
@@ -248,14 +179,6 @@ pip install tensorflow-gpu>=2.8.0
 | InfB NS1 | Influenza B Non-structural protein 1 |
 | InfB NS2 | Influenza B Non-structural protein 2 |
 | InfB PB2 | Influenza B Polymerase basic protein 2 |
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
 
 ## License
 
