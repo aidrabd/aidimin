@@ -1,6 +1,6 @@
 # AIDIMIN - Protein Sequence Prediction Tool
 
-**AIDIMIN** is used to aid the Identification of Immune-evasion proteins sequences of Influenza A and B using a hybrid CNN-RNN model.
+**AIDIMIN** is applicable to aid the Identification of Immune-evasion proteins sequences of Influenza A and B using a hybrid CNN-RNN model.
 
 ## Features
 
